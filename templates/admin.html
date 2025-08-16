@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - DuckTickets</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        header { background: #343a40; color: white; padding: 1rem 0; margin-bottom: 2rem; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        nav a { color: white; text-decoration: none; margin-left: 1rem; padding: 0.5rem 1rem; border-radius: 5px; }
+        nav a:hover { background: rgba(255,255,255,0.2); }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #007bff; }
+        .stat-label { color: #666; margin-top: 0.5rem; }
+        
+        .section { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+        .section h2 { margin-bottom: 1rem; color: #333; }
+        
+        .btn { background: #007bff; color: white; padding: 0.5rem 1rem; text-decoration: none; border-radius: 4px; display: inline-block; margin: 0.25rem; border: none; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #000; }
+        .btn-small { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background: #f8f9fa; font-weight: 600; }
+        
+        .form-section { background: #f8f9fa; padding: 1rem; border-radius: 5px; margin-top: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+        
+        .loading { text-align: center; padding: 2rem; color: #666; }
+        .error { color: #dc3545; padding: 1rem; background: #f8d7da; border-radius: 4px; margin: 1rem 0; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal-content { background: white; margin: 5% auto; padding: 2rem; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; }
+        .close { float: right; font-size: 1.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">🦆 DuckTickets Admin</div>
+                <nav>
+                    <a href="/">← Voltar ao Site</a>
+                    <a href="/docs">API Docs</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-events">-</div>
+                <div class="stat-label">Total de Eventos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="active-events">-</div>
+                <div class="stat-label">Eventos Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-orders">-</div>
+                <div class="stat-label">Total de Pedidos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="paid-orders">-</div>
+                <div class="stat-label">Pedidos Pagos</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Criar Novo Evento</h2>
+            <div class="form-section">
+                <form id="event-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">Nome do Evento:</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Local:</label>
+                            <input type="text" id="location" name="location">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Descrição:</label>
+                        <textarea id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="start_date">Data/Hora Início:</label>
+                            <input type="datetime-local" id="start_date" name="start_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="end_date">Data/Hora Fim:</label>
+                            <input type="datetime-local" id="end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Criar Evento</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Eventos</h2>
+            <div id="events-list" class="loading">Carregando eventos...</div>
+        </div>
+
+        <div class="section">
+            <h2>Criar Lote de Ingressos</h2>
+            <div class="form-section">
+                <form id="batch-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="batch-event-id">Evento:</label>
+                            <select id="batch-event-id" name="event_id" required>
+                                <option value="">Selecione um evento</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="batch-name">Nome do Lote:</label>
+                            <input type="text" id="batch-name" name="name" required placeholder="Ex: Early Bird">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="batch-price">Preço (R$):</label>
+                            <input type="number" id="batch-price" name="price" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="batch-quantity">Quantidade:</label>
+                            <input type="number" id="batch-quantity" name="quantity" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="batch-description">Descrição:</label>
+                        <input type="text" id="batch-description" name="description" placeholder="Opcional">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="sale-start">Início das Vendas:</label>
+                            <input type="datetime-local" id="sale-start" name="sale_start" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sale-end">Fim das Vendas:</label>
+                            <input type="datetime-local" id="sale-end" name="sale_end" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Criar Lote</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para gerenciar lotes -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBatchModal()">&times;</span>
+            <h2>Gerenciar Lotes - <span id="modalEventName"></span></h2>
+            <div id="batches-list" class="loading">Carregando lotes...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentEventId = null;
+
+        // Load stats
+        fetch('/admin/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('total-events').textContent = data.total_events;
+                document.getElementById('active-events').textContent = data.active_events;
+                document.getElementById('total-orders').textContent = data.total_orders;
+                document.getElementById('paid-orders').textContent = data.paid_orders;
+            })
+            .catch(error => console.error('Error loading stats:', error));
+
+        // Load events
+        function loadEvents() {
+            fetch('/admin/events')
+                .then(response => response.json())
+                .then(events => {
+                    // Update dropdown
+                    const dropdown = document.getElementById('batch-event-id');
+                    dropdown.innerHTML = '<option value="">Selecione um evento</option>';
+                    events.forEach(event => {
+                        dropdown.innerHTML += `<option value="${event.id}">${event.name}</option>`;
+                    });
+
+                    // Update table
+                    const container = document.getElementById('events-list');
+                    if (events.length === 0) {
+                        container.innerHTML = '<p>Nenhum evento encontrado.</p>';
+                        return;
+                    }
+
+                    const table = document.createElement('table');
+                    table.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Data</th>
+                                <th>Local</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${events.map(event => `
+                                <tr>
+                                    <td>${event.id}</td>
+                                    <td>${event.name}</td>
+                                    <td>${new Date(event.start_date).toLocaleDateString('pt-BR')}</td>
+                                    <td>${event.location || 'N/A'}</td>
+                                    <td>${event.is_active ? '✅ Ativo' : '❌ Inativo'}</td>
+                                    <td>
+                                        <a href="/checkout?event_id=${event.id}" class="btn btn-small">🛒 Checkout</a>
+                                        <button onclick="manageBatches(${event.id}, '${event.name}')" class="btn btn-small">📋 Lotes</button>
+                                        <button onclick="deleteEvent(${event.id})" class="btn btn-small btn-danger">🗑️ Excluir</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    `;
+                    container.innerHTML = '';
+                    container.appendChild(table);
+                })
+                .catch(error => {
+                    console.error('Error loading events:', error);
+                    document.getElementById('events-list').innerHTML = '<div class="error">Erro ao carregar eventos</div>';
+                });
+        }
+
+        // Create event
+        document.getElementById('event-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const eventData = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/admin/event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(eventData)
+                });
+                
+                if (response.ok) {
+                    alert('Evento criado com sucesso!');
+                    e.target.reset();
+                    loadEvents();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        });
+
+        // Delete event
+        function deleteEvent(eventId) {
+            if (confirm('Tem certeza que deseja excluir este evento?')) {
+                fetch(`/admin/event/${eventId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(() => {
+                        alert('Evento excluído!');
+                        loadEvents();
+                    })
+                    .catch(error => alert('Erro: ' + error.message));
+            }
+        }
+
+        // Create batch
+        document.getElementById('batch-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('/admin/batches', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    alert('Lote criado com sucesso!');
+                    e.target.reset();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        });
+
+        // Manage batches
+        function manageBatches(eventId, eventName) {
+            currentEventId = eventId;
+            document.getElementById('modalEventName').textContent = eventName;
+            document.getElementById('batchModal').style.display = 'block';
+            loadBatches(eventId);
+        }
+
+        function closeBatchModal() {
+            document.getElementById('batchModal').style.display = 'none';
+        }
+
+        function loadBatches(eventId) {
+            fetch(`/admin/batches/${eventId}`)
+                .then(response => response.json())
+                .then(batches => {
+                    const container = document.getElementById('batches-list');
+                    if (batches.length === 0) {
+                        container.innerHTML = '<p>Nenhum lote encontrado.</p>';
+                        return;
+                    }
+
+                    const table = document.createElement('table');
+                    table.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Preço</th>
+                                <th>Qtd</th>
+                                <th>Vendidos</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${batches.map(batch => `
+                                <tr>
+                                    <td>${batch.name}</td>
+                                    <td>R$ ${batch.price.toFixed(2)}</td>
+                                    <td>${batch.quantity}</td>
+                                    <td>${batch.sold_quantity}</td>
+                                    <td>${batch.is_active ? '✅ Ativo' : '❌ Inativo'}</td>
+                                    <td>
+                                        <button onclick="editBatch(${batch.id}, '${batch.name}', ${batch.price}, ${batch.quantity})" class="btn btn-small">✏️ Editar</button>
+                                        <button onclick="toggleBatch(${batch.id}, ${!batch.is_active})" class="btn btn-small btn-warning">
+                                            ${batch.is_active ? '⏸️ Pausar' : '▶️ Ativar'}
+                                        </button>
+                                        <button onclick="deleteBatch(${batch.id})" class="btn btn-small btn-danger">🗑️ Excluir</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    `;
+                    container.innerHTML = '';
+                    container.appendChild(table);
+                });
+        }
+
+        function editBatch(batchId, name, price, quantity) {
+            const newName = prompt('Nome do lote:', name);
+            const newPrice = prompt('Preço:', price);
+            const newQuantity = prompt('Quantidade:', quantity);
+            
+            if (newName && newPrice && newQuantity) {
+                fetch(`/admin/batches/${batchId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newName,
+                        price: parseFloat(newPrice),
+                        quantity: parseInt(newQuantity)
+                    })
+                })
+                .then(() => {
+                    alert('Lote atualizado!');
+                    loadBatches(currentEventId);
+                });
+            }
+        }
+
+        function toggleBatch(batchId, isActive) {
+            fetch(`/admin/batches/${batchId}?is_active=${isActive}`, { method: 'PUT' })
+                .then(() => loadBatches(currentEventId));
+        }
+
+        function deleteBatch(batchId) {
+            if (confirm('Tem certeza que deseja excluir este lote?')) {
+                fetch(`/admin/batches/${batchId}`, { method: 'DELETE' })
+                    .then(() => {
+                        alert('Lote excluído!');
+                        loadBatches(currentEventId);
+                    });
+            }
+        }
+
+        // Set default dates
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        
+        document.getElementById('start_date').value = tomorrow.toISOString().slice(0, 16);
+        document.getElementById('end_date').value = nextMonth.toISOString().slice(0, 16);
+        document.getElementById('sale-start').value = now.toISOString().slice(0, 16);
+        document.getElementById('sale-end').value = tomorrow.toISOString().slice(0, 16);
+
+        // Load events on page load
+        loadEvents();
+    </script>
+</body>
+</html>

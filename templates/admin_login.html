@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - DuckTickets</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        
+        .login-container { 
+            background: white; 
+            padding: 2rem; 
+            border-radius: 10px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            width: 100%; 
+            max-width: 400px; 
+        }
+        
+        .logo { 
+            text-align: center; 
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem; 
+            margin-bottom: 1rem; 
+            color: #667eea; 
+            font-weight: 900;
+        }
+        
+        .admin-badge {
+            background: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+        
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333; }
+        input { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 1rem; 
+        }
+        input:focus { outline: none; border-color: #28a745; }
+        
+        .btn { 
+            width: 100%; 
+            background: #28a745; 
+            color: white; 
+            padding: 0.75rem; 
+            border: none; 
+            border-radius: 5px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            margin-top: 1rem; 
+        }
+        .btn:hover { background: #218838; }
+        
+        .back-link { text-align: center; margin-top: 1rem; }
+        .back-link a { color: #667eea; text-decoration: none; }
+        .back-link a:hover { text-decoration: underline; }
+        
+        .demo-info { 
+            background: #f8f9fa; 
+            padding: 1rem; 
+            border-radius: 5px; 
+            margin-top: 1rem; 
+            font-size: 0.9rem; 
+            color: #666; 
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🦆 DuckTickets</div>
+        <div class="admin-badge">🔧 Acesso Administrativo</div>
+        
+        <form id="adminLoginForm">
+            <div class="form-group">
+                <label for="email">E-mail Admin:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn">Entrar como Admin</button>
+        </form>
+        
+        <div class="demo-info">
+            <strong>Demo Admin:</strong> Use admin@ducktickets.com para acessar o painel administrativo
+        </div>
+        
+        <div class="back-link">
+            <a href="/login">← Login de usuário</a> | 
+            <a href="/">Início</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            
+            // Simular login admin
+            const userData = {
+                id: 1,
+                email: email,
+                is_admin: true,
+                name: 'Admin'
+            };
+            
+            localStorage.setItem('user', JSON.stringify(userData));
+            
+            // Redirecionar para admin
+            window.location.href = '/admin';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Confirmado - DuckTickets</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; background: #f8f9fa; }
+        .success-container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .success-icon { font-size: 64px; color: #28a745; margin-bottom: 20px; }
+        .order-info { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .btn { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .next-steps { text-align: left; margin-top: 2rem; }
+        .next-steps h3 { color: #333; margin-bottom: 1rem; }
+        .next-steps ul { padding-left: 1.5rem; }
+        .next-steps li { margin-bottom: 0.5rem; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">✅</div>
+        
+        <h1>Pagamento Confirmado!</h1>
+        
+        <p>Obrigado pela sua compra! Seu pagamento foi processado com sucesso.</p>
+        
+        <div class="order-info">
+            <h3>Detalhes do Pedido</h3>
+            {% if order %}
+            <p><strong>Pedido:</strong> #{{ order.id }}</p>
+            <p><strong>Nome:</strong> {{ order.full_name }}</p>
+            <p><strong>E-mail:</strong> {{ order.email }}</p>
+            <p><strong>Total:</strong> R$ {{ "%.2f"|format(order.total_amount) }}</p>
+            <p><strong>Status:</strong> {{ "Pago" if order.status == "paid" else "Pendente" }}</p>
+            {% else %}
+            <p>Informações do pedido não disponíveis</p>
+            {% endif %}
+        </div>
+        
+        <div class="next-steps">
+            <h3>📋 Próximos Passos:</h3>
+            <ul>
+                <li>✅ Seu pedido foi confirmado</li>
+                <li>📧 Você receberá um e-mail de confirmação em breve</li>
+                <li>📱 Seus ingressos estarão disponíveis na área "Meus Ingressos"</li>
+                <li>🎫 Apresente o QR Code na entrada do evento</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: 2rem;">
+            <a href="/meus-ingressos" class="btn btn-success" onclick="saveUserLogin()">📱 Ver Meus Ingressos</a>
+            <a href="/" class="btn">🏠 Voltar ao Início</a>
+        </div>
+        
+        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; color: #666; font-size: 0.9rem;">
+            <p>Dúvidas? Entre em contato: suporte@ducktickets.com</p>
+        </div>
+    </div>
+
+    <script>
+        function saveUserLogin() {
+            // Salvar dados do usuário para acesso aos ingressos
+            {% if order %}
+            localStorage.setItem('userEmail', '{{ order.email }}');
+            localStorage.setItem('isLoggedIn', 'true');
+            {% endif %}
+        }
+
+        // Auto-salvar se o usuário não estiver logado
+        {% if order %}
+        if (!localStorage.getItem('isLoggedIn')) {
+            localStorage.setItem('userEmail', '{{ order.email }}');
+            localStorage.setItem('isLoggedIn', 'true');
+        }
+        {% endif %}
+    </script>
+</body>
+</html>

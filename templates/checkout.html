@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - {{ event.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .event-info { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .ticket-batch { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+        .price { font-weight: bold; color: #28a745; }
+        .error { color: red; margin: 10px 0; }
+        .no-batches { text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="event-info">
+        <h1>{{ event.name }}</h1>
+        <p>{{ event.description or "Descrição do evento" }}</p>
+        <p><strong>Local:</strong> {{ event.location or "A definir" }}</p>
+        <p><strong>Data:</strong> {{ event.start_date.strftime('%d/%m/%Y %H:%M') if event.start_date else "A definir" }}</p>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+
+    {% if batches %}
+    <form id="checkout-form">
+        <h2>Selecione seus ingressos</h2>
+        
+        {% for batch in batches %}
+        <div class="ticket-batch">
+            <h3>{{ batch.name }}</h3>
+            <p>{{ batch.description or "Ingresso para o evento" }}</p>
+            <p class="price">R$ {{ "%.2f"|format(batch.price) }}</p>
+            <p>Disponível: {{ batch.quantity - (batch.sold_quantity or 0) }} ingressos</p>
+            
+            <div class="form-group">
+                <label for="quantity_{{ batch.id }}">Quantidade:</label>
+                <select name="quantity_{{ batch.id }}" id="quantity_{{ batch.id }}">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+        </div>
+        {% endfor %}
+
+        <h2>Seus dados</h2>
+        
+        <div class="form-group">
+            <label for="full_name">Nome completo:</label>
+            <input type="text" id="full_name" name="full_name" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">E-mail:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Telefone:</label>
+            <input type="tel" id="phone" name="phone">
+        </div>
+
+        <button type="submit">Finalizar Pedido</button>
+    </form>
+    {% else %}
+    <div class="no-batches">
+        <h2>🎫 Nenhum lote disponível</h2>
+        <p>Este evento não possui lotes de ingressos disponíveis no momento.</p>
+        <p><a href="/">← Voltar aos eventos</a></p>
+    </div>
+    {% endif %}
+
+    <script>
+        {% if batches %}
+        document.getElementById('checkout-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const items = [];
+            
+            // Collect selected tickets
+            {% for batch in batches %}
+            const quantity_{{ batch.id }} = parseInt(formData.get('quantity_{{ batch.id }}'));
+            if (quantity_{{ batch.id }} > 0) {
+                items.push({
+                    ticket_batch_id: {{ batch.id }},
+                    quantity: quantity_{{ batch.id }}
+                });
+            }
+            {% endfor %}
+            
+            if (items.length === 0) {
+                alert('Selecione pelo menos um ingresso');
+                return;
+            }
+            
+            const orderData = {
+                event_id: {{ event.id }},
+                full_name: formData.get('full_name'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                items: items
+            };
+            
+            try {
+                const response = await fetch('/checkout/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+                
+                const order = await response.json();
+                window.location.href = `/checkout/success?order_id=${order.id}`;
+                
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

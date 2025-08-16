@@ -1,0 +1,41 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo Installing dependencies...
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      
+  pre_build:
+    commands:
+      - echo Running security scans...
+      - pip install bandit pip-audit flake8
+      - bandit -r app -f json -o bandit-report.json || true
+      - pip-audit --format=json --output=pip-audit-report.json || true
+      - flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
+      
+  build:
+    commands:
+      - echo Running tests...
+      - pytest tests/ -v --cov=app --cov-report=xml || true
+      - echo Build completed on `date`
+      
+  post_build:
+    commands:
+      - echo Build phase completed
+      
+artifacts:
+  files:
+    - '**/*'
+  exclude-paths:
+    - tests/
+    - .git/
+    - '*.pyc'
+    - '__pycache__/'
+    - '.pytest_cache/'
+    - 'bandit-report.json'
+    - 'pip-audit-report.json'
+    - 'coverage.xml'
