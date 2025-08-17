@@ -407,6 +407,7 @@
                 authLinks.innerHTML = `
                     <a href="/meus-ingressos">Meus Ingressos</a>
                     ${userData.is_admin ? '<a href="/admin">Admin</a>' : ''}
+                    ${userData.is_admin ? '<a href="/admin/users">Usuários</a>' : ''}
                     <a href="#" onclick="logout()">Sair</a>
                 `;
             } else {

@@ -10,11 +10,12 @@ from aws_xray_sdk.core import patch_all
 import structlog
 import sys
 
-from .config import settings
+from .config_environments import settings
 from .database import engine, Base, get_db
 from .routes import admin_router, checkout_router, webhook_router, tickets_router, health_router, user_router
-from .security import security_headers
-from .rate_limit import limiter
+from .routes.auth import router as auth_router
+from .security_enhanced import SecurityMiddleware, RateLimitMiddleware
+# from .rate_limit import limiter
 from .models import Event, TicketBatch
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -70,26 +71,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Rate limiting
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Security and Rate limiting middleware
+app.add_middleware(SecurityMiddleware, environment=settings.environment)
+app.add_middleware(RateLimitMiddleware, calls=settings.rate_limit_calls, period=settings.rate_limit_period)
 
-# Security headers middleware
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    
-    # Security headers
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
-    
-    if settings.environment == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    return response
+# Security headers now handled by SecurityMiddleware
 
 # Request logging middleware
 @app.middleware("http")
@@ -120,6 +106,7 @@ async def log_requests(request: Request, call_next):
 
 # Include routers
 app.include_router(health_router)
+app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(checkout_router)
 app.include_router(webhook_router)

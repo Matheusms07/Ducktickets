@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Usuários - DuckTickets Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar { min-height: 100vh; background: #343a40; }
+        .sidebar .nav-link { color: #adb5bd; }
+        .sidebar .nav-link:hover { color: #fff; }
+        .sidebar .nav-link.active { color: #fff; background: #495057; }
+        .main-content { background: #f8f9fa; min-height: 100vh; }
+        .user-card { transition: transform 0.2s; }
+        .user-card:hover { transform: translateY(-2px); }
+        .badge-admin { background: #dc3545; }
+        .badge-user { background: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">🦆 DuckTickets</h4>
+                        <small class="text-muted">Admin Panel</small>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/events">
+                                <i class="fas fa-calendar me-2"></i>Eventos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/admin/users">
+                                <i class="fas fa-users me-2"></i>Usuários
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/orders">
+                                <i class="fas fa-shopping-cart me-2"></i>Pedidos
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Gerenciar Usuários</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="fas fa-plus me-2"></i>Novo Usuário
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="searchUsers" placeholder="Buscar por nome ou email...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterRole">
+                            <option value="">Todos os tipos</option>
+                            <option value="admin">Administradores</option>
+                            <option value="user">Usuários</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterStatus">
+                            <option value="">Todos os status</option>
+                            <option value="active">Ativos</option>
+                            <option value="inactive">Inativos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Users Grid -->
+                <div class="row" id="usersContainer">
+                    <!-- Users will be loaded here -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Criar Novo Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="createUserForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <input type="text" class="form-control" name="full_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Senha</label>
+                            <input type="password" class="form-control" name="password" required minlength="8">
+                            <div class="form-text">Mínimo 8 caracteres, com maiúscula, minúscula e número</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+                                <label class="form-check-label" for="isAdmin">
+                                    Administrador
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Criar Usuário</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editUserForm">
+                    <input type="hidden" name="user_id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nome Completo</label>
+                            <input type="text" class="form-control" name="full_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nova Senha (opcional)</label>
+                            <input type="password" class="form-control" name="password" minlength="8">
+                            <div class="form-text">Deixe em branco para manter a senha atual</div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_admin" id="editIsAdmin">
+                                <label class="form-check-label" for="editIsAdmin">
+                                    Administrador
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive">
+                                <label class="form-check-label" for="editIsActive">
+                                    Usuário Ativo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allUsers = [];
+
+        // Load users on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search and filters
+            document.getElementById('searchUsers').addEventListener('input', filterUsers);
+            document.getElementById('filterRole').addEventListener('change', filterUsers);
+            document.getElementById('filterStatus').addEventListener('change', filterUsers);
+
+            // Forms
+            document.getElementById('createUserForm').addEventListener('submit', createUser);
+            document.getElementById('editUserForm').addEventListener('submit', updateUser);
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/admin/api/users');
+                if (!response.ok) throw new Error('Erro ao carregar usuários');
+                
+                allUsers = await response.json();
+                displayUsers(allUsers);
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao carregar usuários', 'danger');
+            }
+        }
+
+        function displayUsers(users) {
+            const container = document.getElementById('usersContainer');
+            
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5>Nenhum usuário encontrado</h5>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = users.map(user => `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card user-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="card-title mb-1">${user.full_name}</h6>
+                                    <small class="text-muted">${user.email}</small>
+                                </div>
+                                <div>
+                                    <span class="badge ${user.is_admin ? 'badge-admin' : 'badge-user'}">
+                                        ${user.is_admin ? 'Admin' : 'Usuário'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Criado em ${new Date(user.created_at).toLocaleDateString('pt-BR')}
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <span class="badge ${user.is_active ? 'bg-success' : 'bg-secondary'}">
+                                    ${user.is_active ? 'Ativo' : 'Inativo'}
+                                </span>
+                                ${user.last_login ? `
+                                    <small class="text-muted d-block mt-1">
+                                        Último login: ${new Date(user.last_login).toLocaleDateString('pt-BR')}
+                                    </small>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-sm btn-outline-${user.is_active ? 'warning' : 'success'}" 
+                                        onclick="toggleUserStatus(${user.id}, ${!user.is_active})">
+                                    <i class="fas fa-${user.is_active ? 'pause' : 'play'}"></i>
+                                    ${user.is_active ? 'Desativar' : 'Ativar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterUsers() {
+            const search = document.getElementById('searchUsers').value.toLowerCase();
+            const roleFilter = document.getElementById('filterRole').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+
+            const filtered = allUsers.filter(user => {
+                const matchesSearch = user.full_name.toLowerCase().includes(search) || 
+                                    user.email.toLowerCase().includes(search);
+                
+                const matchesRole = !roleFilter || 
+                                  (roleFilter === 'admin' && user.is_admin) ||
+                                  (roleFilter === 'user' && !user.is_admin);
+                
+                const matchesStatus = !statusFilter ||
+                                    (statusFilter === 'active' && user.is_active) ||
+                                    (statusFilter === 'inactive' && !user.is_active);
+
+                return matchesSearch && matchesRole && matchesStatus;
+            });
+
+            displayUsers(filtered);
+        }
+
+        async function createUser(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const userData = {
+                full_name: formData.get('full_name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                is_admin: formData.get('is_admin') === 'on'
+            };
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+
+                showAlert('Usuário criado com sucesso!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+                e.target.reset();
+                loadUsers();
+            } catch (error) {
+                showAlert('Erro: ' + error.message, 'danger');
+            }
+        }
+
+        async function editUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            const form = document.getElementById('editUserForm');
+            form.user_id.value = user.id;
+            form.full_name.value = user.full_name;
+            form.email.value = user.email;
+            form.password.value = '';
+            form.is_admin.checked = user.is_admin;
+            form.is_active.checked = user.is_active;
+
+            new bootstrap.Modal(document.getElementById('editUserModal')).show();
+        }
+
+        async function updateUser(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const userId = formData.get('user_id');
+            const userData = {
+                full_name: formData.get('full_name'),
+                email: formData.get('email'),
+                is_admin: formData.get('is_admin') === 'on',
+                is_active: formData.get('is_active') === 'on'
+            };
+
+            if (formData.get('password')) {
+                userData.password = formData.get('password');
+            }
+
+            try {
+                const response = await fetch(`/admin/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+
+                showAlert('Usuário atualizado com sucesso!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+                loadUsers();
+            } catch (error) {
+                showAlert('Erro: ' + error.message, 'danger');
+            }
+        }
+
+        async function toggleUserStatus(userId, newStatus) {
+            try {
+                const response = await fetch(`/admin/api/users/${userId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: newStatus })
+                });
+
+                if (!response.ok) throw new Error('Erro ao alterar status');
+
+                showAlert(`Usuário ${newStatus ? 'ativado' : 'desativado'} com sucesso!`, 'success');
+                loadUsers();
+            } catch (error) {
+                showAlert('Erro: ' + error.message, 'danger');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

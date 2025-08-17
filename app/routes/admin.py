@@ -199,3 +199,76 @@ def get_orders(event_id: int, db: Session = Depends(get_db)):
             "created_at": o.created_at.isoformat()
         } for o in orders
     ]
+
+# User Management Routes
+@router.get("/users", response_class=HTMLResponse)
+def admin_users_page(request: Request):
+    """Admin users management page"""
+    return templates.TemplateResponse("admin_users.html", {"request": request})
+
+@router.get("/api/users")
+def list_all_users(db: Session = Depends(get_db)):
+    """List all users"""
+    from ..models import User
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "is_admin": u.is_admin,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat(),
+            "last_login": u.last_login.isoformat() if u.last_login else None
+        } for u in users
+    ]
+
+@router.put("/api/users/{user_id}")
+def update_user(
+    user_id: int,
+    full_name: str = None,
+    email: str = None,
+    password: str = None,
+    is_admin: bool = None,
+    is_active: bool = None,
+    db: Session = Depends(get_db)
+):
+    """Update user"""
+    from ..models import User
+    from ..auth import auth_manager
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if full_name is not None:
+        user.full_name = full_name
+    if email is not None:
+        user.email = email
+    if password is not None:
+        user.password_hash = auth_manager.get_password_hash(password)
+    if is_admin is not None:
+        user.is_admin = is_admin
+    if is_active is not None:
+        user.is_active = is_active
+    
+    db.commit()
+    return {"message": "User updated successfully"}
+
+@router.patch("/api/users/{user_id}/status")
+def toggle_user_status(
+    user_id: int,
+    is_active: bool,
+    db: Session = Depends(get_db)
+):
+    """Toggle user active status"""
+    from ..models import User
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.is_active = is_active
+    db.commit()
+    
+    return {"message": f"User {'activated' if is_active else 'deactivated'} successfully"}
