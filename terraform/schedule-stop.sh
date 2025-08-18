@@ -18,13 +18,13 @@ def lambda_handler(event, context):
     try:
         # Stop EB Environment
         eb.terminate_environment(
-            EnvironmentName='ducktickets-hml',
+            EnvironmentName='ducktickets-eb-hml',
             TerminateResources=True
         )
         
         # Stop RDS
         rds.stop_db_instance(
-            DBInstanceIdentifier='ducktickets-hml-db'
+            DBInstanceIdentifier='ducktickets-db-hml'
         )
         
         return {
@@ -50,12 +50,12 @@ def lambda_handler(event, context):
     try:
         # Start RDS first
         rds.start_db_instance(
-            DBInstanceIdentifier='ducktickets-hml-db'
+            DBInstanceIdentifier='ducktickets-db-hml'
         )
         
         # Wait for RDS to be available
         waiter = rds.get_waiter('db_instance_available')
-        waiter.wait(DBInstanceIdentifier='ducktickets-hml-db')
+        waiter.wait(DBInstanceIdentifier='ducktickets-db-hml')
         
         # Note: EB environment needs to be recreated manually
         # as it was terminated, not just stopped

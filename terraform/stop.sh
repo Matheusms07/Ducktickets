@@ -7,8 +7,8 @@ echo "🛑 DuckTickets - Stop Infrastructure"
 echo "===================================="
 
 # Get environment name
-ENV_NAME=$(terraform output -raw eb_environment_url | cut -d'.' -f1 | cut -d'/' -f3)
-DB_IDENTIFIER="ducktickets-hml-db"
+ENV_NAME="ducktickets-eb-hml"
+DB_IDENTIFIER="ducktickets-db-hml"
 
 echo "📊 Current Status:"
 echo "   Environment: $ENV_NAME"

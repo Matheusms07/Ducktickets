@@ -9,14 +9,14 @@ echo "======================================"
 # Check Elastic Beanstalk
 echo "🌐 Elastic Beanstalk:"
 EB_STATUS=$(aws elasticbeanstalk describe-environments \
-    --environment-names ducktickets-hml \
+    --environment-names ducktickets-eb-hml \
     --query 'Environments[0].Status' \
     --output text 2>/dev/null || echo "NotFound")
 
 if [ "$EB_STATUS" = "Ready" ]; then
     echo "   ✅ Running"
     EB_URL=$(aws elasticbeanstalk describe-environments \
-        --environment-names ducktickets-hml \
+        --environment-names ducktickets-eb-hml \
         --query 'Environments[0].EndpointURL' \
         --output text)
     echo "   🌐 URL: http://$EB_URL"
@@ -30,7 +30,7 @@ fi
 echo ""
 echo "🗄️ RDS Database:"
 DB_STATUS=$(aws rds describe-db-instances \
-    --db-instance-identifier ducktickets-hml-db \
+    --db-instance-identifier ducktickets-db-hml \
     --query 'DBInstances[0].DBInstanceStatus' \
     --output text 2>/dev/null || echo "NotFound")
 

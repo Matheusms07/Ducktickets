@@ -6,7 +6,7 @@ set -e
 echo "▶️ DuckTickets - Start Infrastructure"
 echo "====================================="
 
-DB_IDENTIFIER="ducktickets-hml-db"
+DB_IDENTIFIER="ducktickets-db-hml"
 
 # Start RDS Database
 echo "▶️ Starting RDS Database..."

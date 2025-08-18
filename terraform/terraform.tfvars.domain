@@ -1,0 +1,14 @@
+# Domain Configuration Example
+
+# Your domain name
+domain_name = "seudominio.com"
+
+# Create Route53 hosted zone (set to true if domain is not in AWS yet)
+create_route53 = false
+
+# Environment
+environment = "hml"
+
+# Other settings
+aws_region = "us-east-1"
+app_name = "ducktickets"

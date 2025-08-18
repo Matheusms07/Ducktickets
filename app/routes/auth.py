@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from ..database import get_db
 from ..auth import auth_manager
+from ..auth import get_current_user
 from ..validators import InputValidator
 from ..models import User
 
@@ -167,7 +168,7 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
         )
 
 @router.get("/me")
-def get_current_user_info(current_user: User = Depends(auth_manager.get_current_user)):
+def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return {
         "id": current_user.id,

@@ -31,10 +31,23 @@ variable "app_name" {
   default     = "ducktickets"
 }
 
+variable "domain_name" {
+  description = "Domain name for the application"
+  type        = string
+  default     = ""
+}
+
+variable "create_route53" {
+  description = "Create Route53 hosted zone and records"
+  type        = bool
+  default     = false
+}
+
 # Random password for RDS
 resource "random_password" "db_password" {
   length  = 32
   special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
 resource "random_password" "secret_key" {
@@ -48,7 +61,7 @@ resource "random_id" "bucket_suffix" {
 
 # S3 Bucket
 resource "aws_s3_bucket" "storage" {
-  bucket = "${var.app_name}-${var.environment}-storage-${random_id.bucket_suffix.hex}"
+  bucket = "${var.app_name}-s3-${var.environment}-${random_id.bucket_suffix.hex}"
 }
 
 resource "aws_s3_bucket_versioning" "storage" {
@@ -60,27 +73,30 @@ resource "aws_s3_bucket_versioning" "storage" {
 
 # SQS Queue
 resource "aws_sqs_queue" "main" {
-  name                      = "${var.app_name}-${var.environment}-queue"
+  name                      = "${var.app_name}-sqs-${var.environment}"
   delay_seconds             = 0
   max_message_size          = 262144
   message_retention_seconds = 345600
 }
 
-# RDS PostgreSQL
+# RDS PostgreSQL (Private Subnet)
 resource "aws_db_instance" "main" {
-  identifier = "${var.app_name}-${var.environment}-db"
+  identifier = "${var.app_name}-db-${var.environment}"
   
   engine         = "postgres"
-  engine_version = "13.13"
+  engine_version = "15.8"
   instance_class = "db.t3.micro"
   
   allocated_storage = 20
-  storage_type      = "gp2"
+  storage_type      = "gp3"
   storage_encrypted = true
   
   db_name  = "ducktickets"
   username = "ducktickets"
   password = random_password.db_password.result
+  
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
   
   backup_retention_period = 1
   backup_window          = "03:00-04:00"
@@ -88,114 +104,114 @@ resource "aws_db_instance" "main" {
   
   skip_final_snapshot = true
   deletion_protection = false
-  publicly_accessible = true
+  publicly_accessible = false
   
   tags = {
-    Name = "${var.app_name}-${var.environment}-db"
+    Name = "${var.app_name}-db-${var.environment}"
   }
 }
 
-# Elastic Beanstalk Application
-resource "aws_elastic_beanstalk_application" "main" {
-  name        = var.app_name
-  description = "DuckTickets Event Ticketing Platform"
+# Security groups defined in vpc.tf
+
+# IAM Role for EC2 SSM
+resource "aws_iam_role" "ec2_ssm_role" {
+  name = "${var.app_name}-ec2-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
-# Elastic Beanstalk Environment
-resource "aws_elastic_beanstalk_environment" "main" {
-  name                = "${var.app_name}-${var.environment}"
-  application         = aws_elastic_beanstalk_application.main.name
-  solution_stack_name = "64bit Amazon Linux 2 v3.4.24 running Python 3.11"
+# Attach SSM policy
+resource "aws_iam_role_policy_attachment" "ec2_ssm_policy" {
+  role       = aws_iam_role.ec2_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
 
-  setting {
-    namespace = "aws:autoscaling:launchconfiguration"
-    name      = "InstanceType"
-    value     = "t3.micro"
-  }
+# Instance profile
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "${var.app_name}-ec2-profile"
+  role = aws_iam_role.ec2_ssm_role.name
+}
 
-  setting {
-    namespace = "aws:autoscaling:asg"
-    name      = "MinSize"
-    value     = "1"
+# Elastic IP
+resource "aws_eip" "main" {
+  domain = "vpc"
+  
+  tags = {
+    Name = "${var.app_name}-eip-${var.environment}"
   }
+}
 
-  setting {
-    namespace = "aws:autoscaling:asg"
-    name      = "MaxSize"
-    value     = "2"
+# EC2 Instance
+resource "aws_instance" "main" {
+  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2023
+  instance_type = "t3.micro"
+  
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 8
+    encrypted   = true
   }
+  
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.ec2.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+  
+  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
+    database_url = "postgresql://${aws_db_instance.main.username}:${random_password.db_password.result}@${aws_db_instance.main.endpoint}/${aws_db_instance.main.db_name}"
+    secret_key   = random_password.secret_key.result
+    aws_region   = var.aws_region
+    s3_bucket    = aws_s3_bucket.storage.bucket
+    sqs_queue_url = aws_sqs_queue.main.url
+    environment  = var.environment
+    domain_name  = var.domain_name
+  }))
 
-  setting {
-    namespace = "aws:elasticbeanstalk:environment"
-    name      = "EnvironmentType"
-    value     = "SingleInstance"
+  tags = {
+    Name = "${var.app_name}-ec2-${var.environment}"
   }
+}
 
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "ENVIRONMENT"
-    value     = "homologation"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "DATABASE_URL"
-    value     = "postgresql://${aws_db_instance.main.username}:${random_password.db_password.result}@${aws_db_instance.main.endpoint}/${aws_db_instance.main.db_name}"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "SECRET_KEY"
-    value     = random_password.secret_key.result
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "AWS_REGION"
-    value     = var.aws_region
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "S3_BUCKET"
-    value     = aws_s3_bucket.storage.bucket
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "SQS_QUEUE_URL"
-    value     = aws_sqs_queue.main.url
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "DEBUG"
-    value     = "false"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:cloudwatch:logs"
-    name      = "StreamLogs"
-    value     = "true"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:cloudwatch:logs"
-    name      = "DeleteOnTerminate"
-    value     = "true"
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:cloudwatch:logs"
-    name      = "RetentionInDays"
-    value     = "7"
-  }
+# Associate Elastic IP
+resource "aws_eip_association" "main" {
+  instance_id   = aws_instance.main.id
+  allocation_id = aws_eip.main.id
 }
 
 # Outputs
-output "eb_environment_url" {
-  description = "Elastic Beanstalk environment URL"
-  value       = aws_elastic_beanstalk_environment.main.endpoint_url
+output "ec2_public_ip" {
+  description = "EC2 instance public IP"
+  value       = aws_instance.main.public_ip
+}
+
+output "ec2_public_dns" {
+  description = "EC2 instance public DNS"
+  value       = aws_instance.main.public_dns
+}
+
+output "elastic_ip" {
+  description = "Elastic IP address"
+  value       = aws_eip.main.public_ip
+}
+
+output "domain_url" {
+  description = "Domain URL"
+  value       = var.domain_name != "" ? "https://${var.environment == "prod" ? var.domain_name : "${var.environment}.${var.domain_name}"}" : "http://${aws_eip.main.public_ip}"
+}
+
+output "nameservers" {
+  description = "Route53 nameservers (if created)"
+  value       = var.create_route53 ? aws_route53_zone.main[0].name_servers : []
 }
 
 output "database_endpoint" {

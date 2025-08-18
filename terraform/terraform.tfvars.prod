@@ -1,0 +1,10 @@
+# Production Environment Variables
+
+environment = "prod"
+environment_type = "prod"
+enable_auto_deploy = true
+instance_type_prod = "t3.small"
+
+# Production-specific settings
+aws_region = "us-east-1"
+app_name = "ducktickets"
