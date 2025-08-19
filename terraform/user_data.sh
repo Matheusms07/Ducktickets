@@ -1,27 +1,39 @@
 #!/bin/bash
-# DuckTickets EC2 Production Setup Script
+# DuckTickets EC2 Auto-Deploy Script
+# Todas as correções aplicadas baseadas no debug manual
+
+set -e
+exec > >(tee /var/log/ducktickets-setup.log) 2>&1
+
+echo "🚀 Starting DuckTickets Auto-Deploy..."
 
 # Update system
+echo "📦 Updating system..."
 yum update -y
 
-# Install dependencies
+# Install dependencies (correção: nginx via amazon-linux-extras)
+echo "📦 Installing dependencies..."
 yum install -y python3 python3-pip git amazon-cloudwatch-agent
 amazon-linux-extras install nginx1 -y
 
 # Create app user
+echo "👤 Creating app user..."
 useradd -m -s /bin/bash ducktickets
 usermod -aG wheel ducktickets
 
 # Create app directory
+echo "📁 Setting up directories..."
 mkdir -p /opt/ducktickets/app
 chown -R ducktickets:ducktickets /opt/ducktickets
 
-# Clone repository and setup
+# Clone repository
+echo "📥 Cloning repository..."
 cd /opt/ducktickets
 sudo -u ducktickets git clone https://github.com/Matheusms07/Ducktickets.git app
 
 # Get public IP for CORS
 PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+echo "🌐 Public IP: $PUBLIC_IP"
 
 # Set up environment variables
 if [ "${domain_name}" != "" ]; then
@@ -35,7 +47,8 @@ else
     ALLOWED_ORIGINS="http://$PUBLIC_IP"
 fi
 
-# Create .env in the correct location (app directory)
+# Create .env in the correct location (correção: app directory, não root)
+echo "⚙️ Creating environment file..."
 cat > /opt/ducktickets/app/.env << EOF
 ENVIRONMENT=${environment}
 DATABASE_URL=${database_url}
@@ -50,54 +63,78 @@ EOF
 # Set correct ownership
 chown ducktickets:ducktickets /opt/ducktickets/app/.env
 
-# Install Python dependencies (compatible versions for Python 3.7)
+# Install Python dependencies (correção: versões compatíveis Python 3.7)
+echo "🐍 Installing Python dependencies..."
 cd /opt/ducktickets/app
 sudo -u ducktickets python3 -m pip install --user --upgrade pip
 
-# Core FastAPI dependencies
+# Core FastAPI dependencies (correção: versões específicas)
+echo "📦 Installing FastAPI..."
 sudo -u ducktickets python3 -m pip install --user fastapi==0.103.2 uvicorn[standard]==0.24.0 gunicorn==21.2.0
 
 # Database dependencies
+echo "🗄️ Installing database dependencies..."
 sudo -u ducktickets python3 -m pip install --user sqlalchemy==2.0.23 alembic==1.12.1 psycopg2-binary==2.9.9
 
-# Pydantic and settings (Python 3.7 compatible)
+# Pydantic and settings (correção: versões compatíveis Python 3.7)
+echo "⚙️ Installing Pydantic..."
 sudo -u ducktickets python3 -m pip install --user pydantic==2.5.3 pydantic-settings==2.0.3
 
 # Authentication and security
+echo "🔐 Installing auth dependencies..."
 sudo -u ducktickets python3 -m pip install --user python-jose[cryptography]==3.3.0 PyJWT passlib[bcrypt] bleach
 
 # Web dependencies
+echo "🌐 Installing web dependencies..."
 sudo -u ducktickets python3 -m pip install --user python-multipart==0.0.6 jinja2==3.1.2
 
-# AWS and external services (Python 3.7 compatible)
+# AWS and external services (correção: versões compatíveis Python 3.7)
+echo "☁️ Installing AWS dependencies..."
 sudo -u ducktickets python3 -m pip install --user boto3==1.33.13 aws-xray-sdk==2.12.1
 
 # Payment and QR codes
+echo "💳 Installing payment dependencies..."
 sudo -u ducktickets python3 -m pip install --user mercadopago==2.2.1 qrcode[pil]==7.4.2
 
-# Rate limiting and logging (Python 3.7 compatible)
+# Rate limiting and logging (correção: versões compatíveis Python 3.7)
+echo "📊 Installing monitoring dependencies..."
 sudo -u ducktickets python3 -m pip install --user slowapi==0.1.9 structlog==23.1.0
 
 # Cache (Redis)
+echo "🔄 Installing Redis..."
 sudo -u ducktickets python3 -m pip install --user redis==5.0.1
 
-# Verify installation
-sudo -u ducktickets python3 -c "import fastapi, sqlalchemy, boto3, slowapi; print('All dependencies OK')"
+# Verify core dependencies
+echo "✅ Verifying installations..."
+sudo -u ducktickets python3 -c "import fastapi; print('✅ FastAPI OK')"
+sudo -u ducktickets python3 -c "import sqlalchemy; print('✅ SQLAlchemy OK')"
+sudo -u ducktickets python3 -c "import boto3; print('✅ Boto3 OK')"
+sudo -u ducktickets python3 -c "import slowapi; print('✅ SlowAPI OK')"
+sudo -u ducktickets python3 -c "import pydantic_settings; print('✅ Pydantic Settings OK')"
 
-# Fix pydantic import issue
+# CORREÇÃO CRÍTICA: Fix pydantic import issue (descoberto no debug)
+echo "🔧 Fixing Pydantic 2.x compatibility..."
 sed -i 's/from pydantic import BaseSettings, validator/from pydantic_settings import BaseSettings\nfrom pydantic import validator/' /opt/ducktickets/app/app/config_environments.py
 
-# Fix auth import issue
+# CORREÇÃO CRÍTICA: Fix auth import issue (descoberto no debug)
+echo "🔧 Fixing auth imports..."
 sed -i 's/auth_manager.get_current_user/get_current_user/' /opt/ducktickets/app/app/routes/auth.py
 sed -i '/from ..auth import auth_manager/a from ..auth import get_current_user' /opt/ducktickets/app/app/routes/auth.py
 
+# Test import before proceeding
+echo "🧪 Testing application import..."
+sudo -u ducktickets python3 -c "import app.main; print('✅ Application import successful!')"
+
 # Run database migrations
+echo "🗄️ Running database migrations..."
 sudo -u ducktickets /home/ducktickets/.local/bin/python3 -m alembic upgrade head
 
 # Create admin user
+echo "👤 Creating admin user..."
 sudo -u ducktickets /home/ducktickets/.local/bin/python3 scripts/create_admin.py
 
-# Create systemd service
+# Create systemd service (correção: EnvironmentFile no diretório correto)
+echo "⚙️ Creating systemd service..."
 cat > /etc/systemd/system/ducktickets.service << 'EOF'
 [Unit]
 Description=DuckTickets FastAPI Application
@@ -109,8 +146,8 @@ User=ducktickets
 Group=ducktickets
 WorkingDirectory=/opt/ducktickets/app
 Environment=PATH=/home/ducktickets/.local/bin:/usr/bin
-EnvironmentFile=/opt/ducktickets/.env
-ExecStart=/home/ducktickets/.local/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
+EnvironmentFile=/opt/ducktickets/app/.env
+ExecStart=/home/ducktickets/.local/bin/gunicorn app.main:app -w 2 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000
 Restart=always
 RestartSec=3
 
